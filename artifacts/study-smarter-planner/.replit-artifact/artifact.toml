@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Study Smarter Planner"
+description = "A mobile-first study planner that helps high school students turn subjects, confidence levels, exam dates, and available time into a concrete study plan, then track sessions and reflect on progress."
+version = "1.0.0"
+id = "artifacts/study-smarter-planner"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 18953
+
+[services.development]
+run = "pnpm --filter @workspace/study-smarter-planner run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/study-smarter-planner", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/study-smarter-planner/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "18953"
+BASE_PATH = "/"

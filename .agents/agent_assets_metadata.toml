@@ -1,0 +1,30 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "ETBXZ5PG9-Ovi4Pr19SOz"
+uri = "file://artifacts/study-smarter-planner/public/study-smarter-mark.jpg"
+type = "image"
+title = "Study Smarter logo"
+description = "Square logo crop from your shared image. This is the version used in the app header, welcome screen, and browser tab."
+logical_id = "476d9e7d-6d70-4d72-ac43-6ff9f6361b70"
+content_hash = "sha256:b0f6ffc1513f3ffb7f1c209f00f9d35c203098e834f4e7592a69ef76efb01b66"
+size = 32155
+mtime_ms = 1790943695857
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:ef32421c-4f33-43ad-9dee-ea3d6e57be20/476d9e7d-6d70-4d72-ac43-6ff9f6361b70/fd648008-a302-4d09-a697-3ccd101599e9"
+storage_version_token = "1790943807369435"
+content_type = "image/jpeg"
+
+[[outputs]]
+id = "WUNXWb8weUXU1r41-IVnt"
+uri = "file://artifacts/study-smarter-planner/public/study-smarter-logo.jpg"
+type = "image"
+title = "Saved source image"
+description = "The source image preview saved from your shared ChatGPT link; the app uses the square crop as its logo."
+logical_id = "03bc9d3e-34ce-401e-bcb4-bc106a0980c9"
+content_hash = "sha256:f8778f7575be7c0167ac51947e4d80db9795dfc887f2c0a9bc9c1166ea046933"
+size = 49843
+mtime_ms = 1790943603521
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:ef32421c-4f33-43ad-9dee-ea3d6e57be20/03bc9d3e-34ce-401e-bcb4-bc106a0980c9/fca513ba-46d0-444b-b9a6-8f88e601f6ca"
+storage_version_token = "1790943808752301"
+content_type = "image/jpeg"
