@@ -4,16 +4,25 @@ A mobile-first study planner that turns a student's subjects, confidence, exam d
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
+- Install workspace dependencies with `pnpm install --frozen-lockfile`.
+- Replit Preview runs the planner through its managed `artifacts/study-smarter-planner: web` workflow at `/`.
 - `pnpm --filter @workspace/study-smarter-planner run dev` — run the planner web app
+- `pnpm --filter @workspace/api-server run dev` — run the separate API server; the planner does not require it
 - `pnpm --filter @workspace/study-smarter-planner run typecheck` — typecheck the planner
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- `DATABASE_URL` is used by the separate API/database packages, not by the planner's sign-in flow.
 
-The planner currently runs without the API or database. Study data is stored in the current browser.
+## Authentication setup
+
+- Google sign-in uses Firebase Authentication; signed-in planner data is stored in Firestore at `users/{uid}`.
+- Store the Firebase web-app configuration in Replit Secrets under the `VITE_FIREBASE_*` names used in `src/lib/firebase.ts`. Values must all belong to the same Firebase project; do not commit them. If the preview reports `auth/invalid-api-key`, replace the configuration with the web app values from Firebase Project settings.
+- In the Firebase project, enable Google under Authentication → Sign-in method and add the Replit development hostname (and the published app hostname when publishing) to Authentication → Settings → Authorized domains.
+- Enable Firestore and restrict each `users/{uid}` document so only the authenticated user whose UID matches `{uid}` can read or write it.
+- If Firestore is unavailable or denies access, Google authentication can still complete and the planner opens with the signed-in profile, but cloud loading/saving requires a working Firestore database and matching security rules.
+- The welcome page also offers Demo Mode, which does not create a Firebase account.
 
 ## Stack
 
@@ -32,8 +41,8 @@ The planner currently runs without the API or database. Study data is stored in 
 
 ## Architecture decisions
 
-- MVP persistence is local-first; profile and study history do not sync across browsers or devices.
-- Google and Apple sign-in controls explain that provider authentication is not connected; the working path uses a local demo profile.
+- Google-authenticated planner data syncs to Firestore under the Firebase UID.
+- The welcome page keeps a separate in-memory demo path for trying the planner without an account.
 - Statistics are derived from saved sessions. Regenerating plans preserves completed sessions and past missed sessions.
 - Weekly plans use exam urgency, confidence, reflection focus, missed sessions, availability, and unavailable days.
 
@@ -47,8 +56,8 @@ Use the supplied mobile study-planner mockup as the visual reference. Keep the i
 
 ## Gotchas
 
-- Local demo data is browser-specific and can be lost if browser storage is cleared.
-- Do not describe the demo profile as secure authentication or imply Google/Apple sign-in is active.
+- Demo data is not synced and is cleared when the page reloads or the user signs out.
+- Firebase Authentication and Firestore require the Firebase project settings described above; do not describe demo mode as secure authentication.
 
 ## Pointers
 
