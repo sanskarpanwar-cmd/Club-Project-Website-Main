@@ -75,7 +75,23 @@ function Welcome() {
       setMessage('');
       const user = await signInWithGoogle();
       if (user) {
-        go('/');
+        const cloudData = await loadPlannerFromCloud(user.uid);
+        if (cloudData) {
+          setData(cloudData);
+          go('/');
+        } else {
+          // New user: initialize with user info but go to builder for customization
+          setData(p => ({
+            ...p,
+            user: {
+              id: user.uid,
+              name: user.displayName || 'Student',
+              email: user.email || '',
+              createdAt: new Date().toISOString()
+            }
+          }));
+          go('/builder');
+        }
       }
     } catch (err: any) {
       console.error("Google sign in failed:", err);
