@@ -38,6 +38,17 @@ export function todayKey(date = new Date()) {
   const d = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
   return d.toISOString().slice(0, 10);
 }
+export function weekStartKey(date = new Date()) {
+  const start = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const daysSinceMonday = (start.getDay() + 6) % 7;
+  start.setDate(start.getDate() - daysSinceMonday);
+  return todayKey(start);
+}
+export function reflectionWeekKey(value: string) {
+  const [year, month, day] = value.split('-').map(Number);
+  if (!year || !month || !day) return value;
+  return weekStartKey(new Date(year, month - 1, day));
+}
 export type PlanOptions = {
   focusSubjectId?: string;
   missedSubjectIds?: string[];
