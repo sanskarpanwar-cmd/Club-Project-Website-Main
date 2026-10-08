@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, createContext, useContext, type Dispatch, type SetStateAction, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, useRef, createContext, useContext, type Dispatch, type SetStateAction, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
@@ -12,7 +12,8 @@ import { empty, createPlan, createRecoveryPlan, createWeekPlan, todayKey, uid, t
 const queryClient = new QueryClient();
 function latestReflection(data: PlannerData) { return [...data.reflections].sort((a, b) => b.week.localeCompare(a.week))[0]; }
 function missedSubjectIds(data: PlannerData, today = todayKey()) { return data.sessions.filter(s => !s.completed && s.scheduledDate < today).map(s => s.subjectId); }
-const DataContext = createContext<{ data: PlannerData; setData: Dispatch<SetStateAction<PlannerData>> } | null>(null);
+type CloudSyncStatus = 'local' | 'syncing' | 'synced' | 'error';
+const DataContext = createContext<{ data: PlannerData; setData: Dispatch<SetStateAction<PlannerData>>; syncStatus: CloudSyncStatus } | null>(null);
 function usePlanner() { const value = useContext(DataContext); if (!value) throw new Error('Planner context missing'); return value; }
 function BrandMark({className}:{className:string}) { return <img src={`${import.meta.env.BASE_URL}study-smarter-mark.jpg`} alt="" aria-hidden="true" className={className}/>; }
 
@@ -24,10 +25,23 @@ const navItems = [
   { href: '/profile', label: 'Profile', icon: UserRound },
 ];
 function AppRouter() {
-  const { data } = usePlanner();
-  const [path] = useLocation();
+  const { data, syncStatus } = usePlanner();
+  const [path, go] = useLocation();
+  useEffect(() => {
+    if (data.user && path === '/welcome') go(data.subjects.length ? '/' : '/builder');
+  }, [data.user?.id, data.subjects.length, path, go]);
+  if (data.user && path === '/welcome') {
+    return <div className="min-h-[100dvh] flex items-center justify-center bg-[#f5f8fc] text-sm font-semibold text-slate-600">Opening your planner…</div>;
+  }
   if (!data.user && path !== '/welcome' && path !== '/builder') return <Welcome/>;
-  return <div className="min-h-[100dvh]">{data.user && <AppShell/>}<Switch>
+  return <div className="min-h-[100dvh]">{data.user && <AppShell/>}
+    {data.user && syncStatus === 'error' && <div className="mx-auto max-w-[920px] px-4 pt-4 sm:px-7 lg:ml-[232px] lg:px-10">
+      <div role="status" className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-relaxed text-amber-950">
+        <p className="font-bold">Cloud sync is unavailable</p>
+        <p className="mt-1">Your Google account is signed in, but Firestore denied access to this planner. Your changes are not syncing. Check the Firebase Firestore rules for <code className="rounded bg-white/70 px-1">/users/{'{uid}'}</code>, then reload the app.</p>
+      </div>
+    </div>}
+    <Switch>
     <Route path="/welcome" component={Welcome}/>
     <Route path="/builder" component={Builder}/>
     <Route path="/" component={data.user ? Home : Welcome}/>
@@ -40,14 +54,15 @@ function AppRouter() {
 }
 function AppShell() {
   const [location] = useLocation();
-  const { data } = usePlanner();
+  const { data, syncStatus } = usePlanner();
   const [menuOpen, setMenuOpen] = useState(false);
+  const accountStatus = syncStatus === 'synced' ? 'Synced to cloud' : syncStatus === 'syncing' ? 'Syncing to cloud' : syncStatus === 'error' ? 'Cloud sync unavailable' : 'Demo planner';
   return <><aside className="hidden lg:flex fixed inset-y-0 left-0 w-[232px] border-r border-border bg-white/80 px-5 py-7 flex-col z-20">
     <Link href="/" className="flex items-center gap-3 px-2 mb-10"><BrandMark className="w-10 h-10 rounded-xl object-cover"/><span className="font-display font-extrabold text-[16px] tracking-tight">study smarter</span></Link>
     <p className="px-3 mb-3 text-[10px] font-bold uppercase tracking-[.16em] text-muted-foreground">Your workspace</p>
     <nav className="space-y-1">{navItems.map(({href,label,icon:Icon}) => <Link key={href} href={href} className={`flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-semibold transition-colors ${location===href?'bg-blue-50 text-primary':'text-slate-600 hover:bg-slate-50'}`}><Icon size={18}/>{label}</Link>)}</nav>
     <div className="mt-auto rounded-2xl bg-[#f1f6fb] p-4"><div className="w-9 h-9 rounded-xl bg-white grid place-items-center text-primary mb-3"><Target size={18}/></div><p className="font-display font-bold text-sm">Small steps count.</p><p className="text-xs leading-relaxed text-muted-foreground mt-1">Your plan can change with you. No catch-up marathon needed.</p></div>
-    <div className="mt-5 px-2 flex items-center gap-3"><div className="w-9 h-9 rounded-full bg-blue-100 text-primary grid place-items-center font-bold text-sm">{data.user?.name.slice(0,1).toUpperCase()}</div><div className="min-w-0"><p className="text-sm font-semibold truncate">{data.user?.name}</p><p className="text-xs text-muted-foreground">Local planner</p></div></div>
+    <div className="mt-5 px-2 flex items-center gap-3"><div className="w-9 h-9 rounded-full bg-blue-100 text-primary grid place-items-center font-bold text-sm">{data.user?.name.slice(0,1).toUpperCase()}</div><div className="min-w-0"><p className="text-sm font-semibold truncate">{data.user?.name}</p><p className="text-xs text-muted-foreground">{accountStatus}</p></div></div>
   </aside>
   <header className="lg:hidden h-[62px] flex items-center justify-between px-4 border-b border-border bg-white/90 sticky top-0 z-20"><Link href="/" className="flex items-center gap-2.5"><BrandMark className="w-9 h-9 rounded-xl object-cover"/><span className="font-display font-extrabold tracking-tight">study smarter</span></Link><button onClick={()=>setMenuOpen(!menuOpen)} aria-label="Open navigation" className="w-10 h-10 grid place-items-center rounded-xl hover:bg-slate-100"><Menu size={20}/></button></header>
   {menuOpen && <div className="lg:hidden fixed inset-0 z-30 bg-slate-900/20" onClick={()=>setMenuOpen(false)}><nav onClick={e=>e.stopPropagation()} className="absolute right-0 top-0 bottom-0 w-[min(82vw,320px)] bg-white p-5 pt-16 shadow-xl">{navItems.map(({href,label,icon:Icon})=><Link key={href} href={href} onClick={()=>setMenuOpen(false)} className="flex items-center gap-3 px-3 py-4 rounded-xl font-semibold text-slate-700"><Icon size={19}/>{label}</Link>)}</nav><button onClick={()=>setMenuOpen(false)} className="absolute right-[min(82vw,320px)] top-3 p-3"><X/></button></div>}
@@ -73,26 +88,7 @@ function Welcome() {
     try {
       setAuthLoading(true);
       setMessage('');
-      const user = await signInWithGoogle();
-      if (user) {
-        const cloudData = await loadPlannerFromCloud(user.uid);
-        if (cloudData) {
-          setData(cloudData);
-          go('/');
-        } else {
-          // New user: initialize with user info but go to builder for customization
-          setData(p => ({
-            ...p,
-            user: {
-              id: user.uid,
-              name: user.displayName || 'Student',
-              email: user.email || '',
-              createdAt: new Date().toISOString()
-            }
-          }));
-          go('/builder');
-        }
-      }
+      await signInWithGoogle();
     } catch (err: any) {
       console.error("Google sign in failed:", err);
       setMessage(err.message || 'Google sign-in failed. Please try again.');
@@ -243,67 +239,83 @@ function MainApp(){
   const [data,setData]=useState<PlannerData>(empty);
   const [loading,setLoading]=useState(true);
   const [userId,setUserId]=useState<string|null>(null);
+  const [cloudReady,setCloudReady]=useState(false);
+  const [syncStatus,setSyncStatus]=useState<CloudSyncStatus>('local');
+  const activeUserId=useRef<string|null>(null);
 
   useEffect(()=>{
+    let authGeneration = 0;
     const unsub = watchAuth(async (user)=>{
+      const requestId = ++authGeneration;
       console.log("Auth state changed:", user ? user.uid : "null");
       if (user) {
         setUserId(user.uid);
+        activeUserId.current=user.uid;
+        setCloudReady(false);
+        setSyncStatus('syncing');
+        setLoading(true);
+        const fallback: PlannerData = {
+          ...empty,
+          user: {
+            id: user.uid,
+            name: user.displayName || 'Student',
+            email: user.email || '',
+            createdAt: new Date().toISOString()
+          }
+        };
         try {
           const cloudData = await loadPlannerFromCloud(user.uid);
+          if (requestId !== authGeneration) return;
           console.log("Cloud data loaded:", !!cloudData);
-          if (cloudData) {
-            setData(cloudData);
-          } else {
-            setData({
-              ...empty,
-              user: {
-                id: user.uid,
-                name: user.displayName || 'Student',
-                email: user.email || '',
-                createdAt: new Date().toISOString()
-              }
-            });
-          }
+          setData(cloudData ? { ...empty, ...cloudData, user: cloudData.user ?? fallback.user } : fallback);
+          setCloudReady(true);
+          setSyncStatus(cloudData ? 'synced' : 'syncing');
         } catch (e) {
+          if (requestId !== authGeneration) return;
           console.error("Failed to load user planner data", e);
-          setData({
-            ...empty,
-            user: {
-              id: user.uid,
-              name: user.displayName || 'Student',
-              email: user.email || '',
-              createdAt: new Date().toISOString()
-            }
-          });
+          setData(fallback);
+          setCloudReady(false);
+          setSyncStatus('error');
         }
+        if (requestId === authGeneration) setLoading(false);
       } else {
         console.log("User logged out");
         setUserId(null);
+        activeUserId.current=null;
+        setCloudReady(false);
+        setSyncStatus('local');
         setData(empty);
+        setLoading(false);
       }
-      setLoading(false);
     });
-    return ()=>unsub();
+    return ()=>{authGeneration++;unsub();};
   },[]);
 
   useEffect(()=>{
-    if (!loading && userId && data.user) {
+    if (!loading && cloudReady && userId && data.user) {
+      setSyncStatus('syncing');
       const timer = setTimeout(()=>{
-        savePlannerToCloud(userId, data).catch(err => console.error("Auto-sync error", err));
+        savePlannerToCloud(userId, data).then(()=>{
+          if (activeUserId.current === userId) setSyncStatus('synced');
+        }).catch(err => {
+          if (activeUserId.current !== userId) return;
+          console.error("Auto-sync error", err);
+          setCloudReady(false);
+          setSyncStatus('error');
+        });
       }, 700);
       return () => {
         clearTimeout(timer);
       };
     }
     return undefined;
-  }, [data, userId, loading]);
+  }, [data, userId, loading, cloudReady]);
 
   if (loading) {
     return <div className="min-h-[100dvh] flex items-center justify-center bg-[#f5f8fc]"><div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin"/></div>;
   }
 
-  return <DataContext.Provider value={{data,setData}}><AppRouter/></DataContext.Provider>;
+  return <DataContext.Provider value={{data,setData,syncStatus}}><AppRouter/></DataContext.Provider>;
 }
 function App(){return <QueryClientProvider client={queryClient}><TooltipProvider><WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/,'')}><ErrorBoundary><MainApp/></ErrorBoundary></WouterRouter><Toaster/></TooltipProvider></QueryClientProvider>}
 export default App;
