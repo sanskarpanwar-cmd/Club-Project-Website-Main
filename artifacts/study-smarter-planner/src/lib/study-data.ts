@@ -4,6 +4,10 @@ export type StudySession = { id: string; subjectId: string; activity: string; du
 export type Reflection = { id: string; week: string; wentWell: string; difficult: string; focus: string; realism: string };
 export type PlannerData = {
   user: { id: string; name: string; email: string; createdAt: string } | null;
+  grade?: string;
+  board?: string;
+  effectiveTechniques?: string[];
+  ineffectiveTechniques?: string[];
   subjects: Subject[];
   exams: Exam[];
   weekdayMinutes: number;
@@ -17,7 +21,10 @@ export type PlannerData = {
 };
 
 export const empty: PlannerData = {
-  user: null, subjects: [], exams: [], weekdayMinutes: 60, weekendMinutes: 90,
+  user: null, grade: 'Grade 10th', board: 'CBSE',
+  effectiveTechniques: ['Practice testing', 'Feynman technique'],
+  ineffectiveTechniques: ['Passive re-reading'],
+  subjects: [], exams: [], weekdayMinutes: 60, weekendMinutes: 90,
   todayMinutes: 60, unavailableDays: [], preferredModes: ['Solving questions', 'Mixture'],
   sessions: [], reflections: [], recoveryMode: false,
 };
